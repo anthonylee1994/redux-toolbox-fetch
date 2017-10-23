@@ -1,79 +1,103 @@
-import { delay } from "redux-saga";
-import { take, put, call as rawCall, fork, race, select, takeEvery } from "redux-saga/effects";
-import { isTokenExpired } from "./selectors";
+import "isomorphic-fetch";
+import { put } from "redux-saga/effects";
+import { pipe } from "ramda";
+import { IHttpRequestConfig, bodyParser, ContentType, Method, IHttpHelperExtraConfig, IReduxAction } from "./interfaces";
+import { queryStringBodyParser, jsonBodyParser } from "./bodyParsers";
+import { HttpRequestError } from "./error";
 
-import actions, { START_COUNTDOWN_TIMER, CANCEL_COUNTDOWN_TIMER, SET_TOKEN, DELETE_TOKEN } from "./actions";
-import { IStorageService, ITokenObject } from "./interface";
-import defaultStorageService from "./defaultStorage";
-import { jwtSelector } from "./selectors";
-const call: any = rawCall;
+export function applyBodyParserMiddleware(middleware: bodyParser[]): any {
+    if (!middleware || middleware.length === 0) {
+        return (x: any) => x;
+    }
+    return pipe(...middleware);
+}
 
-export default (storageService: IStorageService = defaultStorageService) => {
-    return function* listen(): any {
-        yield [
-            fork(initialize(storageService)),
-            fork(listenAction(storageService)),
-        ];
+export function httpRequest(httpRequestConfig: IHttpRequestConfig) {
+    let config: RequestInit = {
+        credentials: "same-origin",
+        method: httpRequestConfig.method,
     };
-};
 
-export const initialize = (storageService: IStorageService) => function* init() {
-
-    const tokens: ITokenObject = yield call(storageService.getToken);
-
-    if (!tokens) {
-        return;
+    if (httpRequestConfig.requestType) {
+        config.headers["Content-Type"] = httpRequestConfig.requestType;
     }
-    const currentTimestamp = new Date().valueOf();
-
-    for (const id of Object.keys(tokens)) {
-        const token: ITokenObject = tokens[id];
-        if (!isTokenExpired(currentTimestamp, token.last_updated, token.expires_in)) {
-            yield put(actions(id).setToken(token)); // sync token into reducer
-        } else {
-            yield put(actions(id).onTokenExpired(token));
-        }
+    if (httpRequestConfig.responseType) {
+        config.headers.Accept = httpRequestConfig.responseType;
     }
-};
-
-export const updateToken = (storageService: IStorageService) => function* _updateToken(action: any): any {
-    const { id } = action.payload;
-    const tokens = yield select(jwtSelector);
-    yield call(storageService.setToken, tokens);
-    if (action.type === SET_TOKEN) {
-        yield put(actions(id).startCountdownTimer(action.payload.token.expires_in));
-        return;
+    if (httpRequestConfig.authToken) {
+        config.headers.Authorization = httpRequestConfig.authToken;
     }
-    yield put(actions(id).cancelCountdownTimer());
-};
+    if (applyBodyParserMiddleware(httpRequestConfig.bodyParserMiddleware)(httpRequestConfig.body)) {
+        config.body = applyBodyParserMiddleware(httpRequestConfig.bodyParserMiddleware)(httpRequestConfig.body);
+    }
 
-export const listenAction = (storageService: IStorageService) => function* _listenUpdateToken(): any {
-    yield [
-        call(takeEvery, SET_TOKEN, updateToken(storageService)),
-        call(takeEvery, DELETE_TOKEN, updateToken(storageService)),
-        call(takeEvery, START_COUNTDOWN_TIMER, startCountdownTimer),
-    ];
-};
+    if (httpRequestConfig.method === Method.GET && config.body && queryStringBodyParser(config.body).length > 0) {
+        httpRequestConfig.url += "?" + queryStringBodyParser(config.body);
+    }
 
-export function* startCountdownTimer(action): any {
-    const { id, expiresIn } = action.payload;
-    yield race({
-        task: call(countdownTimer, id, expiresIn),
-        cancel: call(cancelCountdownTimer, id),
-    });
+    if (httpRequestConfig.customHttpConfig) {
+        config = {
+            ...httpRequestConfig.customHttpConfig,
+        };
+    }
+
+    if (config.body && httpRequestConfig.requestType === ContentType.FormUrlencoded) {
+        config.body = queryStringBodyParser(config.body);
+    }
+    if (config.body && httpRequestConfig.requestType === ContentType.JSON) {
+        config.body = jsonBodyParser(config.body);
+    }
+
+    return fetch(httpRequestConfig.url, config);
 }
 
-export function* countdownTimer(id: string, expiresIn: number) {
-    yield call(delay, expiresIn);
-    const tokens = yield select(jwtSelector);
-    yield put(actions(id).onTokenExpired(tokens[id]));
-}
+export const http = {
+    get: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+        return (action: IReduxAction) => httpRequest({
+            url: urlParser(action.payload),
+            body: action.payload.data,
+            method: Method.GET,
+            ...otherConfig,
+        });
+    },
+    post: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+        return (action: IReduxAction) => httpRequest({
+            url: urlParser(action.payload),
+            body: action.payload.data,
+            method: Method.POST,
+            ...otherConfig,
+        });
+    },
+    put: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+        return (action: IReduxAction) => httpRequest({
+            url: urlParser(action.payload),
+            body: action.payload.data,
+            method: Method.PUT,
+            ...otherConfig,
+        });
+    },
+    delete: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+        return (action: IReduxAction) => httpRequest({
+            url: urlParser(action.payload),
+            body: action.payload.data,
+            method: Method.DELETE,
+            ...otherConfig,
+        });
+    },
+};
 
-export function* cancelCountdownTimer(id: string, t = true): any {
-    while (t) {
-        const action = yield take(CANCEL_COUNTDOWN_TIMER);
-        if (action.payload.id === id) {
-            return;
+export function fetchSaga(request: (action: IReduxAction) => Promise<Response>, success: (response: any) => IterableIterator<IReduxAction>, failure: (e) => IReduxAction) {
+
+    return function* saga(action: IReduxAction): any {
+        try {
+            const response = yield request(action);
+            if (!response) {
+                throw new HttpRequestError("Unable to connect to API Server", -1);
+            }
+            yield put(yield success(response));
+        } catch (e) {
+            console.error(e);
+            yield put(failure(e));
         }
-    }
+    };
 }
