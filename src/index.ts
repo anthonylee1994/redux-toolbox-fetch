@@ -1,9 +1,8 @@
 import "isomorphic-fetch";
-import { put } from "redux-saga/effects";
+import { put, call } from "redux-saga/effects";
 import { pipe } from "ramda";
 import { IHttpRequestConfig, bodyParser, ContentType, Method, IHttpHelperExtraConfig, IReduxAction } from "./interfaces";
 import { queryStringBodyParser, jsonBodyParser } from "./bodyParsers";
-import { HttpRequestError } from "./error";
 
 export function applyBodyParserMiddleware(middleware: bodyParser[]): any {
     if (!middleware || middleware.length === 0) {
@@ -52,52 +51,117 @@ export function httpRequest(httpRequestConfig: IHttpRequestConfig) {
 }
 
 export const http = {
-    get: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+    request: (
+        resolve: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
+        reject: (error: Error) => IReduxAction,
+        config: {
+            method: Method,
+            urlParser: (payload: any) => string,
+            body?: any,
+            otherConfig?: IHttpHelperExtraConfig,
+        },
+    ) => {
         return (action: IReduxAction) => httpRequest({
-            url: urlParser(action.payload),
+            url: config.urlParser(action.payload),
+            body: action.payload.data,
+            method: config.method,
+            ...config.otherConfig,
+        }).then(resolve).catch(reject);
+    },
+    get: (
+        resolve: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
+        reject: (error: Error) => IReduxAction,
+        config: {
+            urlParser: (payload: any) => string,
+            otherConfig?: IHttpHelperExtraConfig,
+        },
+    ) => {
+        return (action: IReduxAction) => httpRequest({
+            url: config.urlParser(action.payload),
             body: action.payload.data,
             method: Method.GET,
-            ...otherConfig,
-        });
+            ...config.otherConfig,
+        }).then(resolve).catch(reject);
     },
-    post: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+    post: (
+        resolve: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
+        reject: (error: Error) => IReduxAction,
+        config: {
+            urlParser: (payload: any) => string,
+            body?: any,
+            otherConfig?: IHttpHelperExtraConfig,
+        },
+    ) => {
         return (action: IReduxAction) => httpRequest({
-            url: urlParser(action.payload),
+            url: config.urlParser(action.payload),
             body: action.payload.data,
             method: Method.POST,
-            ...otherConfig,
-        });
+            ...config.otherConfig,
+        }).then(resolve).catch(reject);
     },
-    put: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+    put: (
+        resolve: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
+        reject: (error: Error) => IReduxAction,
+        config: {
+            urlParser: (payload: any) => string,
+            body?: any,
+            otherConfig?: IHttpHelperExtraConfig,
+        },
+    ) => {
         return (action: IReduxAction) => httpRequest({
-            url: urlParser(action.payload),
+            url: config.urlParser(action.payload),
             body: action.payload.data,
             method: Method.PUT,
-            ...otherConfig,
-        });
+            ...config.otherConfig,
+        }).then(resolve).catch(reject);
     },
-    delete: (urlParser: (payload: any) => string, body?: any, otherConfig?: IHttpHelperExtraConfig) => {
+    delete: (
+        resolve: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
+        reject: (error: Error) => IReduxAction,
+        config: {
+            urlParser: (payload: any) => string,
+            body?: any,
+            otherConfig?: IHttpHelperExtraConfig,
+        },
+    ) => {
         return (action: IReduxAction) => httpRequest({
-            url: urlParser(action.payload),
+            url: config.urlParser(action.payload),
             body: action.payload.data,
             method: Method.DELETE,
-            ...otherConfig,
-        });
+            ...config.otherConfig,
+        }).then(resolve).catch(reject);
     },
 };
 
-export function fetchSaga(request: (action: IReduxAction) => Promise<Response>, success: (response: any) => IterableIterator<IReduxAction>, failure: (e) => IReduxAction) {
+export function fetchSaga(request: (action: IReduxAction) => Promise<any>) {
 
     return function* saga(action: IReduxAction): any {
-        try {
-            const response = yield request(action);
-            if (!response) {
-                throw new HttpRequestError("Unable to connect to API Server", -1);
-            }
-            yield put(yield success(response));
-        } catch (e) {
-            console.error(e);
-            yield put(failure(e));
+        const {response, error} = yield call(request, action);
+        if (!error) {
+            yield put(response);
+        } else {
+            yield put(error);
         }
     };
 }
+
+// const fuck = http.get(
+//     function*(response: Response) {
+//         const json = yield response.json();
+//         return {
+//             type: "SUCCESS",
+//             payload: json,
+//         };
+//     },
+//     error => {
+//         return {
+//             type: "FAILURE",
+//             payload: error,
+//         };
+//     },
+//     {
+//         urlParser: () => "http://httpstat.us/500",
+//     },
+// );
+
+// fetchSaga(fuck);
