@@ -137,6 +137,7 @@ export function fetchSaga(request: (action: IReduxAction) => Promise<any>) {
 
     return function* saga(action: IReduxAction): any {
         const {response, error} = yield call(request, action);
+        console.log(response);
         if (!error) {
             yield put(response);
         } else {
