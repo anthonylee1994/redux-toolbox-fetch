@@ -1,4 +1,4 @@
-import "isomorphic-fetch";
+import "whatwg-fetch";
 import { put, call } from "redux-saga/effects";
 import { pipe, isEmpty } from "ramda";
 import queryStringBodyParser from "./BodyParsers/QueryStringBodyParser";

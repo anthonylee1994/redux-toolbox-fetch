@@ -1,6 +1,6 @@
 {
     "name": "redux-toolbox-fetch",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "Redux Toolbox Fetch",
     "main": "./index.js",
     "types": "./index.d.ts",
@@ -69,6 +69,7 @@
         "redux": "^3.7.2",
         "redux-saga": "^0.15.6",
         "redux-saga-api-call": "0.0.5",
+        "util": "^0.10.3",
         "whatwg-fetch": "^2.0.3"
     }
 }
