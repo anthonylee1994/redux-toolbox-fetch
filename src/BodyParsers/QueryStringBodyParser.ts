@@ -1,4 +1,4 @@
-export function queryStringBodyParser(body: any) {
+export default function queryStringBodyParser(body) {
     if (!body) {
         return "";
     }
@@ -9,8 +9,4 @@ export function queryStringBodyParser(body: any) {
         }
     }
     return str.substr(0, str.length - 1);
-}
-
-export function jsonBodyParser(body: any) {
-    return JSON.stringify(body);
 }

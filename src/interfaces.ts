@@ -13,25 +13,6 @@ export enum ContentType {
 
 export type bodyParser = (requestBody: any) => any;
 
-export interface IHttpRequestConfig {
-    method: Method;
-    url: string;
-    requestType?: ContentType;
-    responseType?: ContentType | string;
-    authToken?: string;
-    body?: any;
-    bodyParserMiddleware?: bodyParser[];
-    customHttpConfig?: any;
-}
-
-export interface IHttpHelperExtraConfig {
-    authToken?: string;
-    bodyParserMiddleware?: bodyParser[];
-    requestType?: ContentType;
-    responseType?: ContentType | string;
-    customHttpConfig?: any;
-}
-
 export interface IReduxAction {
     type: string;
     payload: any;

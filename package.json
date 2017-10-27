@@ -1,6 +1,6 @@
 {
     "name": "redux-toolbox-fetch",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Redux Toolbox Fetch",
     "main": "./index.js",
     "types": "./index.d.ts",
@@ -64,9 +64,11 @@
         "isomorphic-fetch": "^2.2.1",
         "localStorage": "^1.0.3",
         "lodash": "^4.17.4",
+        "node-fetch": "^1.7.3",
         "ramda": "^0.25.0",
         "redux": "^3.7.2",
         "redux-saga": "^0.15.6",
-        "redux-saga-api-call": "0.0.5"
+        "redux-saga-api-call": "0.0.5",
+        "whatwg-fetch": "^2.0.3"
     }
 }
