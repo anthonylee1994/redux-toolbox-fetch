@@ -1,5 +1,5 @@
 import "whatwg-fetch";
-import { put, call } from "redux-saga/effects";
+import { put, call, select } from "redux-saga/effects";
 import { pipe, isEmpty } from "ramda";
 import queryStringBodyParser from "./BodyParsers/QueryStringBodyParser";
 import { bodyParser, ContentType, Method, IReduxAction } from "./interfaces";
@@ -120,81 +120,13 @@ export class HttpRequestBuilder {
 
 }
 
-export const http = {
-    request: (
-        method: Method | string,
-        url: (payload?: any) => string,
-        otherConfig: {
-            bodyParserMiddleware?: bodyParser[] | bodyParser,
-            requestExtra?: any,
-        } = {},
-    ) => (action: IReduxAction) => new HttpRequestBuilder()
-        .setMethod(method)
-        .setUrl(url(action.payload))
-        .setBody(action.payload.data)
-        .applyBodyParserMiddleware(!isEmpty(otherConfig) && !isEmpty(otherConfig.bodyParserMiddleware) ? otherConfig.bodyParserMiddleware : [])
-        .setRequestExtraConfig(!isEmpty(otherConfig) && !isEmpty(otherConfig.requestExtra) ? otherConfig.requestExtra : {})
-        .build(),
-    get: (
-        url: (payload?: any) => string,
-        otherConfig: {
-            bodyParserMiddleware?: bodyParser[] | bodyParser,
-            requestExtra?: any,
-        } = {},
-    ) => (action: IReduxAction) => new HttpRequestBuilder()
-        .setMethod(Method.GET)
-        .setUrl(url(action.payload))
-        .setQuery(action.payload.data)
-        .applyBodyParserMiddleware(!isEmpty(otherConfig) && !isEmpty(otherConfig.bodyParserMiddleware) ? otherConfig.bodyParserMiddleware : [])
-        .setRequestExtraConfig(!isEmpty(otherConfig) && !isEmpty(otherConfig.requestExtra) ? otherConfig.requestExtra : {})
-        .build(),
-    post: (
-        url: (payload?: any) => string,
-        otherConfig: {
-            bodyParserMiddleware?: bodyParser[] | bodyParser,
-            requestExtra?: any,
-        } = {},
-    ) => (action: IReduxAction) => new HttpRequestBuilder()
-        .setMethod(Method.POST)
-        .setUrl(url(action.payload))
-        .setBody(action.payload.data)
-        .applyBodyParserMiddleware(!isEmpty(otherConfig) && !isEmpty(otherConfig.bodyParserMiddleware) ? otherConfig.bodyParserMiddleware : [])
-        .setRequestExtraConfig(!isEmpty(otherConfig) && !isEmpty(otherConfig.requestExtra) ? otherConfig.requestExtra : {})
-        .build(),
-    put: (
-        url: (payload?: any) => string,
-        otherConfig: {
-            bodyParserMiddleware?: bodyParser[] | bodyParser,
-            requestExtra?: any,
-        } = {},
-    ) => (action: IReduxAction) => new HttpRequestBuilder()
-        .setMethod(Method.PUT)
-        .setUrl(url(action.payload))
-        .setBody(action.payload.data)
-        .applyBodyParserMiddleware(!isEmpty(otherConfig) && !isEmpty(otherConfig.bodyParserMiddleware) ? otherConfig.bodyParserMiddleware : [])
-        .setRequestExtraConfig(!isEmpty(otherConfig) && !isEmpty(otherConfig.requestExtra) ? otherConfig.requestExtra : {})
-        .build(),
-    delete: (
-        url: (payload?: any) => string,
-        otherConfig: {
-            bodyParserMiddleware?: bodyParser[] | bodyParser,
-            requestExtra?: any,
-        } = {},
-    ) => (action: IReduxAction) => new HttpRequestBuilder()
-        .setMethod(Method.DELETE)
-        .setUrl(url(action.payload))
-        .setBody(action.payload.data)
-        .applyBodyParserMiddleware(!isEmpty(otherConfig) && !isEmpty(otherConfig.bodyParserMiddleware) ? otherConfig.bodyParserMiddleware : [])
-        .setRequestExtraConfig(!isEmpty(otherConfig) && !isEmpty(otherConfig.requestExtra) ? otherConfig.requestExtra : {})
-        .build(),
-};
-
 export function fetchSaga(
-    request: (action: IReduxAction) => Promise<any>,
+    request: (action: IReduxAction, store?: any) => Promise<any>,
     response: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
 ) {
 
     return function* saga(action: IReduxAction): any {
-        yield put(yield call(response, yield call(request, action)));
+        const store = yield select();
+        yield put(yield call(response, yield call(request, action, store)));
     };
 }
