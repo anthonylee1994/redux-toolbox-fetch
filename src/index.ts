@@ -191,50 +191,10 @@ export const http = {
 
 export function fetchSaga(
     request: (action: IReduxAction) => Promise<any>,
-    resolve: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
-    reject: (error: Error) => IterableIterator<Promise<any> | IReduxAction>,
+    response: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
 ) {
 
     return function* saga(action: IReduxAction): any {
-        const { response, error } = yield call(request, action);
-        if (!error) {
-            yield put(yield call(resolve, response));
-        } else {
-            yield put(yield call(reject, error));
-        }
+        yield put(yield call(response, yield call(request, action)));
     };
 }
-
-// const fuck = http.get(
-//     () => "http://httpstat.us/200",
-// );
-
-// fetchSaga(
-//     fuck,
-//     function*(response) {
-//         const json = yield response.text();
-//         return {
-//             type: "SUCCESS",
-//             payload: json,
-//         };
-//     },
-//     function*(error) {
-//         return {
-//             type: "FAILURE",
-//             payload: error,
-//         };
-//     },
-// )
-// ({
-//         type: "FUCK",
-//         payload: {},
-// }).next();
-
-// export function* xxx() {
-//     const { response } = yield call(fetch, "http://hk.yahoo.com");
-//     return response;
-// }
-// const gen = xxx();
-
-// console.log(gen.next().value);
-// console.log(gen.next({response: {aaa: 111}}).value);
