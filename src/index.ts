@@ -8,6 +8,7 @@ export class HttpRequestBuilder {
 
     private url: string;
     private query: any = {};
+    private middleware: bodyParser[] = [];
 
     private requestInit: RequestInit = {
         headers: {
@@ -89,9 +90,9 @@ export class HttpRequestBuilder {
 
     public applyBodyParserMiddleware(middleware: bodyParser[] | bodyParser) {
         if (Array.isArray(middleware) && middleware.length > 0) {
-            this.requestInit.body = pipe(...middleware)(this.requestInit.body);
+            this.middleware = middleware;
         } else if (typeof middleware === "function") {
-            this.requestInit.body = middleware(this.requestInit.body);
+            this.middleware = [... this.middleware, middleware];
         }
         return this;
     }
@@ -114,8 +115,13 @@ export class HttpRequestBuilder {
     }
 
     public build() {
+        this.execBodyParserMiddleware();
         const url = this.url + (!isEmpty(this.query) ? ("?" + queryStringBodyParser(this.query)) : "");
         return fetch(url, this.requestInit);
+    }
+
+    private execBodyParserMiddleware() {
+        this.requestInit.body = pipe(...this.middleware)(this.requestInit.body);
     }
 
 }
@@ -127,6 +133,9 @@ export function fetchSaga(
 
     return function* saga(action: IReduxAction): any {
         const store = yield select();
-        yield put(yield call(response, yield call(request, action, store)));
+        const callbackAction = yield call(response, yield call(request, action, store));
+        if (callbackAction) {
+            yield put(callbackAction);
+        }
     };
 }
