@@ -4,11 +4,19 @@ import { pipe, isEmpty } from "ramda";
 import queryStringBodyParser from "./BodyParsers/QueryStringBodyParser";
 import { bodyParser, ContentType, Method, IReduxAction } from "./interfaces";
 
+export type GetBody = (response: Response) => Promise<any>;
+export interface IResultObject {
+    error?: Error;
+    data?: any;
+    status?: number;
+    statusText?: string;
+}
 export class HttpRequestBuilder {
 
     private url: string;
     private query: any = {};
     private middleware: bodyParser[] = [];
+
 
     private requestInit: RequestInit = {
         headers: {
@@ -118,6 +126,24 @@ export class HttpRequestBuilder {
         this.execBodyParserMiddleware();
         const url = this.url + (!isEmpty(this.query) ? ("?" + queryStringBodyParser(this.query)) : "");
         return fetch(url, this.requestInit);
+    }
+
+    public toResult(getBody: GetBody = response => response.json()): Promise<IResultObject> {
+        const requestPromise = this.build();
+        return requestPromise.then(response => {
+            const result: any = {
+                status: response.status,
+                statusText: response.statusText,
+            };
+            console.log(result, response);
+            return getBody(response).then(data => {
+                result.data = data;
+                return result;
+            }).catch(error => {
+                result.error = error;
+                return result;
+            });
+        }).catch(error => ({ ...error }));
     }
 
     private execBodyParserMiddleware() {
