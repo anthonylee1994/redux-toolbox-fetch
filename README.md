@@ -8,7 +8,7 @@ redux-toolbox-fetch works with [React Redux](https://github.com/rackt/react-redu
 ```npm i redux-toolbox-fetch```
 
 ## Documentation
-```
+```javascript
 import { HttpRequestBuilder, ContentType, BodyParsers } from "redux-toolbox-fetch";
 
 const getRequest = (content) => new HttpRequestBuilder()
