@@ -1,6 +1,6 @@
 {
     "name": "redux-toolbox-fetch",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Redux Toolbox Fetch",
     "main": "./index.js",
     "types": "./index.d.ts",
@@ -17,7 +17,7 @@
         "test:cover": "jest --coverage",
         "coveralls": "cat ./coverage/lcov.info | coveralls",
         "lint": "tslint {src}/**/*.{ts,tsx}",
-        "build": "rm -Rf ./dist && tsc && cp -rf package.json ./dist"
+        "build": "rm -Rf ./dist && tsc && cp -rf package.json ./dist && cp -rf README.md ./dist"
     },
     "keywords": [
         "typescript",
