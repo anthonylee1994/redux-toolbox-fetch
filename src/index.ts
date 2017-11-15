@@ -1,26 +1,85 @@
 import "whatwg-fetch";
 import { put, call, select } from "redux-saga/effects";
-import { pipe, isEmpty } from "ramda";
-import queryStringBodyParser from "./BodyParsers/QueryStringBodyParser";
-import { bodyParser, ContentType, Method, IReduxAction } from "./interfaces";
+import * as pipe from "ramda/src/pipe";
+import * as isEmpty from "ramda/src/isEmpty";
+
+// Enums
+export enum Method {
+    GET = "GET",
+    POST = "POST",
+    PUT = "PUT",
+    DELETE = "DELETE",
+    PATCH = "PATCH",
+}
+
+export enum ContentType {
+    FormUrlencoded = "application/x-www-form-urlencoded",
+    JSON = "application/json",
+    Multipart = "multipart/form-data",
+}
+
+// Types
+export type bodyParserFunction = (requestBody: any) => any;
 
 export type GetBody = (response: Response) => Promise<any>;
+
+// Interfaces
+export interface IReduxAction {
+    type: string;
+    payload?: any;
+}
+
 export interface IResultObject {
     error?: Error;
     data?: any;
     status?: number;
     statusText?: string;
 }
+
+// Objects
+export const BodyParsers = {
+    json(body) {
+        return JSON.stringify(body);
+    },
+    queryString(body) {
+        if (!body) {
+            return "";
+        }
+        let str = "";
+        for (const v in body) {
+            if (body.hasOwnProperty(v)) {
+                str += `${v}=${encodeURIComponent(body[v])}&`;
+            }
+        }
+        return str.substr(0, str.length - 1);
+    }
+    
+};
+
+// Classes
+export class HttpRequestError {
+    public name = "HttpRequestError";
+    public message: any;
+    public response: any;
+    public jsonResponse: any;
+    public stack: any = (new Error()).stack;
+    public status: number;
+
+    constructor(message: string, status: number, response: any = {}) {
+        this.message = message;
+        this.status = status;
+        this.response = response;
+    }
+}
+
 export class HttpRequestBuilder {
 
     private url: string;
     private query: any = {};
-    private middleware: bodyParser[] = [];
+    private middleware: bodyParserFunction[] = [];
 
-
-    private requestInit: RequestInit = {
-        headers: {
-        },
+    private requestInit: RequestInit | any = {
+        headers: {},
         credentials: "same-origin",
     };
 
@@ -96,7 +155,7 @@ export class HttpRequestBuilder {
         return this.requestInit.body;
     }
 
-    public applyBodyParserMiddleware(middleware: bodyParser[] | bodyParser) {
+    public applyBodyParserMiddleware(middleware: bodyParserFunction[] | bodyParserFunction) {
         if (Array.isArray(middleware) && middleware.length > 0) {
             this.middleware = middleware;
         } else if (typeof middleware === "function") {
@@ -124,7 +183,7 @@ export class HttpRequestBuilder {
 
     public build() {
         this.execBodyParserMiddleware();
-        const url = this.url + (!isEmpty(this.query) ? ("?" + queryStringBodyParser(this.query)) : "");
+        const url = this.url + (!isEmpty(this.query) ? ("?" + BodyParsers.queryString(this.query)) : "");
         return fetch(url, this.requestInit);
     }
 
@@ -135,7 +194,6 @@ export class HttpRequestBuilder {
                 status: response.status,
                 statusText: response.statusText,
             };
-            console.log(result, response);
             return getBody(response).then(data => {
                 result.data = data;
                 return result;
@@ -152,6 +210,8 @@ export class HttpRequestBuilder {
 
 }
 
+
+// Saga Helper
 export function fetchSaga(
     request: (action: IReduxAction, store?: any) => Promise<any>,
     response: (response: Response) => IterableIterator<Promise<any> | IReduxAction>,
